@@ -1,0 +1,118 @@
+#!/bin/bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
+
+# Turn on case-insensitive matching
+shopt -s nocasematch
+# turn on extended globbing
+shopt -s extglob
+
+imageFile=""
+tempFile=""
+outputSpecified="False"
+outputFile=""
+
+function printUsage () {
+	echo "Usage: icontool [--output file] file"
+	echo
+	exit
+}
+
+function checkVars () {
+	if [ -z "$1" ] ; then 
+		printUsage
+	fi
+
+	if [ "$1" == "-o" ] ; then
+		#Looking for output
+		outputSpecified="True"
+	elif [ "$1" == "--output" ] ; then
+		#Looking for output
+		outputSpecified="True"
+	else
+		#Looking for input
+		if ! [ -e "$1" ] ; then
+			echo \""$1"\" does not exist.
+			echo
+			printUsage
+		else
+			imageFile="$1"
+		fi
+	fi
+
+	if [ "$outputSpecified" == "True" ] ; then
+		if [ -z "$2" ] ; then 
+			printUsage
+		fi
+		if [ -z "$3" ] ; then
+			printUsage
+		fi
+
+		if ! [ -e "$3" ]; then
+			echo \""$3\"" does not exist.
+			echo
+			printUsage
+		else
+			imageFile="$3"
+		fi
+
+		outputFile="$2"
+
+	else
+		outputFile="$1.icns"
+	fi
+
+}
+
+checkVars "$1" "$2" "$3"
+
+echo Converting "$imageFile" to "$outputFile"...
+echo
+echo Creating temp directory...
+echo
+
+tempDir=`mktemp -d -t 'icontool'`
+tempIconset="$tempDir/icon.iconset"
+mkdir "$tempIconset"
+
+#sleep 1
+
+echo Creating iconset...
+
+tempFile="$tempIconset/temp.png"
+
+sips -s format png "$imageFile" --out "$tempFile"
+sips -s hasAlpha Yes "$tempFile"
+
+sips -z 1024 1024  "$tempFile" --out "$tempIconset"/icon_512x512@2x.png
+sips -z 512 512    "$tempFile" --out "$tempIconset"/icon_512x512.png
+sips -z 512 512    "$tempFile" --out "$tempIconset"/icon_256x256@2x.png
+sips -z 256 256    "$tempFile" --out "$tempIconset"/icon_256x256.png
+sips -z 256 256    "$tempFile" --out "$tempIconset"/icon_128x128@2x.png
+sips -z 128 128    "$tempFile" --out "$tempIconset"/icon_128x128.png
+sips -z 64 64      "$tempFile" --out "$tempIconset"/icon_32x32@2x.png
+sips -z 32 32      "$tempFile" --out "$tempIconset"/icon_32x32.png
+sips -z 32 32      "$tempFile" --out "$tempIconset"/icon_16x16@2x.png
+sips -z 16 16      "$tempFile" --out "$tempIconset"/icon_16x16.png
+
+echo Cleaning up temp file...
+
+rm "$tempFile"
+
+echo Converting to icns...
+
+iconutil --convert icns --output "$outputFile" "$tempIconset"
+
+echo Adding icon...
+
+sips -i "$outputFile"
+
+#open "$tempIconset"
+
+echo Cleaning up temp directory...
+
+rm -R "$tempDir"
+
+echo
+echo Done.
+echo
